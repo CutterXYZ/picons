@@ -35,16 +35,16 @@ if [[ $location == *" "* ]]; then
     exit 1
 fi
 
-##############################################
-## Ask the user whether to build SNP or SRP ##
-##############################################
+#######################################################
+## Ask the user whether to build UTF8SNP, SNP or SRP ##
+#######################################################
 if [[ -z $1 ]]; then
     echo "Which style are you going to build?"
-    select choice in "Service Reference" "Service Name"; do
+    select choice in "Service Reference" "UTF8 Service Name" "Service Name (Being made redundant, please move to UTF8 Service Name)"; do
         case $choice in
             "Service Reference" ) style="srp"; break;;
-            "Service Name" ) style="snp"; break;;
             "UTF8 Service Name" ) style="utf8snp"; break;;
+            "Service Name (Being made redundant, please move to UTF8 Service Name)" ) style="snp"; break;;
         esac
     done
 else
@@ -204,10 +204,11 @@ if [[ -f $location/build-input/tvheadend.serverconf ]]; then
 
             if [[ $style = "utf8snp" ]]; then
                 channelname=$channelname_raw
-                # Force NFD to match decomposed entries in utf8snp.index
-                utf8snpname=$(python3 -c "import unicodedata,sys; print(unicodedata.normalize('NFD', sys.argv[1]))" "$channelname" | sed -e 's/\(.*\)/\L\1/g' -e 's/[<>:"\/\\|?*]//g' -e 's/\.\+$//')
+                # TVHeadend uses NFC for filenames; normalise to NFD only for index lookup, then convert back to NFC for output
+                utf8snpname_nfd=$(python3 -c "import unicodedata,sys; print(unicodedata.normalize('NFD', sys.argv[1]))" "$channelname" | sed -e 's/\(.*\)/\L\1/g' -e 's/[<>:"\/\\|?*]//g' -e 's/\.\+$//')
+                utf8snpname=$(python3 -c "import unicodedata,sys; print(unicodedata.normalize('NFC', sys.argv[1]))" "$channelname" | sed -e 's/\(.*\)/\L\1/g')
                 if [[ -z $utf8snpname ]]; then utf8snpname="--------"; fi
-                logo_utf8snp=$(grep -i -m 1 "^$utf8snpname=" <<< "$index" | sed -n -e 's/.*=//p')
+                logo_utf8snp=$(grep -i -m 1 "^$utf8snpname_nfd=" <<< "$index" | sed -n -e 's/.*=//p')
                 if [[ -z $logo_utf8snp ]]; then logo_utf8snp="--------"; fi
                 echo -e "$serviceref\t$channelname\t$serviceref_id=$logo_srp\t$utf8snpname=$logo_utf8snp" >> $tempfile
             elif [[ $style = "snp" ]]; then
